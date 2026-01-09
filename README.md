@@ -74,8 +74,7 @@ The main features of the system are:
 | Role  | Description                                               |
 | ----- | --------------------------------------------------------- |
 | User  | Can add income, expenses, view reports, and manage budget |
-| Admin | Can manage users and system data                          |
-
+                          
 ---
 
 # **8. Functional Requirements**
