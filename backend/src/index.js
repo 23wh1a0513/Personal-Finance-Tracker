@@ -1,8 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const { connectDB } = require('./utils/connect');
-const User = require('./models/User');
-const Finance = require('./models/Finance');
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const financeRoutes = require('./routes/finance');
+const budgetRoutes = require('./routes/budget');
 
 const app = express();
 app.use(express.json());
@@ -11,29 +14,17 @@ app.use(cors());
 // Connect to MongoDB Atlas
 connectDB();
 
-// User routes
-app.get('/api/users', async (req, res) => {
-	try {
-		const users = await User.find({}, '-password');
-		res.json(users);
-	} catch (err) {
-		res.status(500).json({ error: 'Failed to fetch users' });
-	}
-});
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/finances', financeRoutes);
+app.use('/api/budgets', budgetRoutes);
 
-// Finance routes
-app.get('/api/finances', async (req, res) => {
-	try {
-		const finances = await Finance.find({}).populate('userId', 'name email');
-		res.json(finances);
-	} catch (err) {
-		res.status(500).json({ error: 'Failed to fetch finances' });
-	}
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
 });
-
-// Add more CRUD routes as needed
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-	console.log(`Server listening at port ${PORT}`);
+  console.log(`Server listening at port ${PORT}`);
 });
