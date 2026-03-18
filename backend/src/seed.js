@@ -70,6 +70,8 @@ const seedDatabase = async () => {
         type: 'expense',
         category: 'rent',
         amount: 12000,
+        recurring: true,
+        recurrenceEndDate: null,
         paymentMethod: 'upi',
         transactionDate: new Date('2024-01-02')
       }

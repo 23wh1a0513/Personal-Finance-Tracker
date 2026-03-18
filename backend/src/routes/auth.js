@@ -4,6 +4,11 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'personal-finance-secret';
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️ JWT_SECRET is not set - using default. Set JWT_SECRET in your environment for security.');
+}
+
 const router = express.Router();
 
 // Register
@@ -30,7 +35,7 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     // Generate token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -68,7 +73,7 @@ router.post('/login', async (req, res) => {
     await user.save();
 
     // Generate token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
       message: 'Login successful',

@@ -6,6 +6,7 @@ import axios from 'axios';
 const Reports = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const now = new Date();
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -21,6 +22,58 @@ const Reports = () => {
     netSavings: 0,
     transactionCount: 0
   });
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+  const [monthlySummary, setMonthlySummary] = useState({
+    totalIncome: 0,
+    totalExpense: 0,
+    netSavings: 0,
+    transactions: 0
+  });
+  const [yearlyData, setYearlyData] = useState([]);
+
+  const fetchMonthlySummary = async (month, year) => {
+    try {
+      const response = await axios.get('/api/finances/summary/monthly', {
+        params: { month, year }
+      });
+      setMonthlySummary(response.data);
+    } catch (error) {
+      console.error('Failed to fetch monthly summary:', error);
+    }
+  };
+
+  const fetchYearlyData = async (year) => {
+    try {
+      const yearData = [];
+      for (let m = 1; m <= 12; m++) {
+        const response = await axios.get('/api/finances/summary/monthly', {
+          params: { month: m, year }
+        });
+        yearData.push(response.data);
+      }
+      setYearlyData(yearData);
+    } catch (error) {
+      console.error('Failed to fetch yearly data:', error);
+    }
+  };
+
+  const fetchTransactions = async (month, year) => {
+    try {
+      const response = await axios.get('/api/finances', {
+        params: { month, year }
+      });
+      setTransactions(response.data);
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error);
+    }
+  };
+
+  const loadMonthData = async (month, year) => {
+    setLoadingData(true);
+    await Promise.all([fetchMonthlySummary(month, year), fetchTransactions(month, year)]);
+    setLoadingData(false);
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -29,24 +82,14 @@ const Reports = () => {
     }
 
     if (user) {
-      fetchTransactions();
+      loadMonthData(month, year);
+      fetchYearlyData(year);
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, month, year]);
 
   useEffect(() => {
     applyFilters();
   }, [transactions, filters]);
-
-  const fetchTransactions = async () => {
-    try {
-      const response = await axios.get('/api/finances');
-      setTransactions(response.data);
-    } catch (error) {
-      console.error('Failed to fetch transactions:', error);
-    } finally {
-      setLoadingData(false);
-    }
-  };
 
   const applyFilters = () => {
     let filtered = [...transactions];
@@ -116,26 +159,104 @@ const Reports = () => {
     <div>
       <h1>Financial Reports</h1>
 
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div>
+          <label>Month:</label>
+          <select
+            value={month}
+            onChange={(e) => setMonth(Number(e.target.value))}
+            style={{ display: 'block', padding: '0.5rem', marginTop: '0.5rem' }}
+          >
+            {[...Array(12)].map((_, idx) => (
+              <option key={idx} value={idx + 1}>
+                {new Date(0, idx).toLocaleString('default', { month: 'long' })}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label>Year:</label>
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            style={{ display: 'block', padding: '0.5rem', marginTop: '0.5rem' }}
+          >
+            {Array.from({ length: 6 }).map((_, idx) => {
+              const y = now.getFullYear() - 2 + idx;
+              return (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      </div>
+
       <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
-        <h2>Summary</h2>
+        <h2>Summary for {new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
           <div style={{ textAlign: 'center', padding: '1rem', backgroundColor: '#e8f5e8', borderRadius: '4px' }}>
             <h3>Total Income</h3>
-            <p style={{ fontSize: '1.5rem', color: 'green' }}>₹{summary.totalIncome}</p>
+            <p style={{ fontSize: '1.5rem', color: 'green' }}>₹{monthlySummary.totalIncome}</p>
           </div>
           <div style={{ textAlign: 'center', padding: '1rem', backgroundColor: '#ffe8e8', borderRadius: '4px' }}>
             <h3>Total Expenses</h3>
-            <p style={{ fontSize: '1.5rem', color: 'red' }}>₹{summary.totalExpense}</p>
+            <p style={{ fontSize: '1.5rem', color: 'red' }}>₹{monthlySummary.totalExpense}</p>
           </div>
-          <div style={{ textAlign: 'center', padding: '1rem', backgroundColor: summary.netSavings >= 0 ? '#e8f5e8' : '#ffe8e8', borderRadius: '4px' }}>
+          <div style={{ textAlign: 'center', padding: '1rem', backgroundColor: monthlySummary.netSavings >= 0 ? '#e8f5e8' : '#ffe8e8', borderRadius: '4px' }}>
             <h3>Net Savings</h3>
-            <p style={{ fontSize: '1.5rem', color: summary.netSavings >= 0 ? 'green' : 'red' }}>
-              ₹{summary.netSavings}
+            <p style={{ fontSize: '1.5rem', color: monthlySummary.netSavings >= 0 ? 'green' : 'red' }}>
+              ₹{monthlySummary.netSavings}
             </p>
           </div>
           <div style={{ textAlign: 'center', padding: '1rem', backgroundColor: '#f0f8ff', borderRadius: '4px' }}>
             <h3>Transactions</h3>
-            <p style={{ fontSize: '1.5rem' }}>{summary.transactionCount}</p>
+            <p style={{ fontSize: '1.5rem' }}>{monthlySummary.transactions}</p>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+        <h2>12-Month Yearly Overview - {year}</h2>
+        <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#e8f4f8' }}>
+                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #ddd' }}>Month</th>
+                <th style={{ textAlign: 'right', padding: '0.75rem', borderBottom: '2px solid #ddd' }}>Expenses</th>
+                <th style={{ textAlign: 'right', padding: '0.75rem', borderBottom: '2px solid #ddd' }}>Savings</th>
+              </tr>
+            </thead>
+            <tbody>
+              {yearlyData.map((data, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #eee', backgroundColor: idx % 2 === 0 ? '#fafafa' : '#fff' }}>
+                  <td style={{ padding: '0.75rem' }}>
+                    {new Date(year, idx).toLocaleString('default', { month: 'long' })}
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '0.75rem', color: '#d32f2f', fontWeight: '500' }}>
+                    ₹{data.totalExpense || 0}
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '0.75rem', color: data.netSavings >= 0 ? '#388e3c' : '#d32f2f', fontWeight: '500' }}>
+                    ₹{data.netSavings || 0}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+          <div style={{ backgroundColor: '#fff3e0', padding: '1rem', borderRadius: '4px', border: '1px solid #ffe0b2' }}>
+            <p style={{ margin: '0 0 0.5rem 0', color: '#666', fontSize: '0.9rem' }}>Total Yearly Expenses</p>
+            <p style={{ margin: 0, fontSize: '1.5rem', color: '#d32f2f', fontWeight: 'bold' }}>
+              ₹{yearlyData.reduce((sum, m) => sum + (m.totalExpense || 0), 0)}
+            </p>
+          </div>
+          <div style={{ backgroundColor: '#e8f5e9', padding: '1rem', borderRadius: '4px', border: '1px solid #c8e6c9' }}>
+            <p style={{ margin: '0 0 0.5rem 0', color: '#666', fontSize: '0.9rem' }}>Total Yearly Savings</p>
+            <p style={{ margin: 0, fontSize: '1.5rem', color: '#388e3c', fontWeight: 'bold' }}>
+              ₹{yearlyData.reduce((sum, m) => sum + (m.netSavings || 0), 0)}
+            </p>
           </div>
         </div>
       </div>
@@ -221,7 +342,7 @@ const Reports = () => {
             </thead>
             <tbody>
               {filteredTransactions.map((transaction) => (
-                <tr key={transaction._id} style={{ borderBottom: '1px solid #eee' }}>
+                <tr key={transaction.instanceId || transaction._id} style={{ borderBottom: '1px solid #eee' }}>
                   <td style={{ padding: '0.5rem' }}>
                     {new Date(transaction.transactionDate).toLocaleDateString()}
                   </td>
@@ -231,7 +352,12 @@ const Reports = () => {
                   <td style={{ padding: '0.5rem', color: transaction.type === 'income' ? 'green' : 'red' }}>
                     ₹{transaction.amount}
                   </td>
-                  <td style={{ padding: '0.5rem' }}>{transaction.description || '-'}</td>
+                  <td style={{ padding: '0.5rem' }}>
+                    {transaction.description || '-'}
+                    {transaction.isRecurringInstance && (
+                      <span style={{ marginLeft: '0.5rem', color: '#007bff' }}>(Recurring)</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

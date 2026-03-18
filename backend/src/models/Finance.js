@@ -11,8 +11,9 @@ const FinanceSchema = new mongoose.Schema({
 
   title: {
     type: String,
-    required: true,
-    trim: true
+    required: false,
+    trim: true,
+    default: null
   },
 
   description: {
@@ -51,6 +52,22 @@ const FinanceSchema = new mongoose.Schema({
     min: 0
   },
 
+  recurring: {
+    type: Boolean,
+    default: false
+  },
+
+  recurrence: {
+    type: String,
+    enum: ['monthly'],
+    default: 'monthly'
+  },
+
+  recurrenceEndDate: {
+    type: Date,
+    default: null
+  },
+
   paymentMethod: {
     type: String,
     enum: ['cash', 'upi', 'card', 'netbanking'],
@@ -81,7 +98,7 @@ const FinanceSchema = new mongoose.Schema({
     },
     riskLevel: {
       type: String,
-      enum: ['low', 'medium', 'high', null],
+      enum: ['low', 'medium', 'high'],
       default: null
     },
     reviewedAt: {
