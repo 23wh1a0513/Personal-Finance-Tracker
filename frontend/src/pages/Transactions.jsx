@@ -10,10 +10,15 @@ const Transactions = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const categories = {
+    income: ['salary', 'business', 'others'],
+    expense: ['food', 'transport', 'shopping', 'rent', 'bills', 'entertainment', 'health', 'education', 'others']
+  };
+
   const [formData, setFormData] = useState({
     description: '',
     type: 'expense',
-    category: 'food',
+    category: categories.expense[0],
     amount: '',
     transactionDate: new Date().toISOString().split('T')[0],
     recurring: false,
@@ -46,10 +51,20 @@ const Transactions = () => {
 
   const handleInputChange = (e) => {
     const { name, type, value, checked } = e.target;
-    setFormData({
-      ...formData,
+
+    if (name === 'type') {
+      setFormData(prev => ({
+        ...prev,
+        type: value,
+        category: categories[value] ? categories[value][0] : prev.category
+      }));
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
       [name]: type === 'checkbox' ? checked : value
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -60,6 +75,12 @@ const Transactions = () => {
     // Validate required fields
     if (!formData.type || !formData.category || !formData.amount || !formData.transactionDate) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    // If 'Others' category is selected, require a description to explain the expense
+    if (formData.category === 'others' && !formData.description.trim()) {
+      setError('Please enter a description for the "Others" category');
       return;
     }
 
@@ -147,7 +168,7 @@ const Transactions = () => {
     setFormData({
       description: '',
       type: 'expense',
-      category: 'food',
+      category: categories.expense[0],
       amount: '',
       transactionDate: new Date().toISOString().split('T')[0],
       recurring: false,
@@ -156,11 +177,6 @@ const Transactions = () => {
     setEditingTransaction(null);
     setShowForm(false);
     setError('');
-  };
-
-  const categories = {
-    income: ['salary', 'business', 'others'],
-    expense: ['food', 'transport', 'shopping', 'rent', 'bills', 'entertainment', 'health', 'education', 'others']
   };
 
   if (loading || loadingData) {
@@ -266,7 +282,14 @@ const Transactions = () => {
               </div>
             )}
             <div style={{ gridColumn: '1 / -1' }}>
-              <label>Notes/Description:</label>
+              <label>
+                Notes/Description:
+                {formData.category === 'others' ? (
+                  <span style={{ fontSize: '0.85rem', color: '#555', marginLeft: '0.5rem' }}>(required for Others)</span>
+                ) : (
+                  <span style={{ fontSize: '0.85rem', color: '#555', marginLeft: '0.5rem' }}>(optional)</span>
+                )}
+              </label>
               <textarea
                 name="description"
                 value={formData.description}
