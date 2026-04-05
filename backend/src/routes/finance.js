@@ -3,6 +3,7 @@ const Finance = require('../models/Finance');
 const auth = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
+const { readJson, writeJson, appendText } = require('../utils/fileOps');
 
 const router = express.Router();
 
@@ -132,6 +133,50 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// Update an existing finance record
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const updateData = { ...req.body };
+    if (updateData.transactionDate) {
+      updateData.transactionDate = new Date(updateData.transactionDate);
+    }
+
+    if (updateData.recurrenceEndDate) {
+      updateData.recurrenceEndDate = new Date(updateData.recurrenceEndDate);
+    }
+
+    const finance = await Finance.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!finance) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    res.json(finance);
+  } catch (error) {
+    console.error('Failed to update finance:', error);
+    res.status(500).json({ error: 'Failed to update transaction' });
+  }
+});
+
+// Delete a finance record
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const finance = await Finance.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+    if (!finance) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    res.json({ message: 'Transaction deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete finance:', error);
+    res.status(500).json({ error: 'Failed to delete transaction' });
+  }
+});
+
 // Get all finances for the authenticated user
 // Supports optional month/year query params to include recurring entries for that month
 router.get('/', auth, async (req, res) => {
@@ -179,6 +224,23 @@ router.get('/', auth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching finances:', error);
     res.status(500).json({ error: 'Failed to fetch finances' });
+  }
+});
+
+// Export user's finances to JSON file (demonstration of fs read/write via fileOps)
+router.get('/export/json', auth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const finances = await Finance.find({ userId }).sort({ transactionDate: -1 });
+    const filePath = path.join(__dirname, '../../data', `finances-${userId}.json`);
+
+    writeJson(filePath, finances);
+    appendText(path.join(__dirname, '../../logs.txt'), `Exported finances for ${userId} to ${filePath}`);
+
+    res.json({ message: 'Export successful', file: filePath });
+  } catch (error) {
+    console.error('Error exporting finances:', error);
+    res.status(500).json({ error: 'Failed to export finances' });
   }
 });
 

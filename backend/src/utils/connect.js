@@ -12,7 +12,10 @@ const redactUri = (uri) => {
 
 const connectDB = async () => {
     try {
-        const uri = process.env.DATABASE_URI || 'mongodb://127.0.0.1:27017/personal-finance';
+        const uri = process.env.DATABASE_URI;
+        if (!uri) {
+            throw new Error('DATABASE_URI is not set. Please configure backend/.env with your MongoDB connection string.');
+        }
         console.log(`Connecting to MongoDB: ${redactUri(uri)}`);
         await mongoose.connect(uri);
         console.log('Database connected successfully');

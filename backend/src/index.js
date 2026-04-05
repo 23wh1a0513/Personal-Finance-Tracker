@@ -19,6 +19,8 @@ if (!fs.existsSync(logsDir)) {
 const authRoutes = require('./routes/auth');
 const financeRoutes = require('./routes/finance');
 const budgetRoutes = require('./routes/budget');
+const User = require('./models/User');
+const { seedDatabase } = require('./seed');
 
 const app = express();
 app.use(express.json());
@@ -32,23 +34,39 @@ app.use((req, res, next) => {
   next();
 });
 
-// Connect to MongoDB Atlas
-connectDB().catch(err => {
-  console.error('Failed to connect to database:', err);
-  process.exit(1);
-});
+// Connect to MongoDB and auto-seed if empty
+const startServer = async () => {
+  try {
+    await connectDB();
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/finances', financeRoutes);
-app.use('/api/budgets', budgetRoutes);
+    // Seed database on startup only when empty
+    const existingUsers = await User.countDocuments();
+    if (existingUsers === 0) {
+      console.log('🔄 Seeding database on startup...');
+      await seedDatabase(false);
+      console.log('✅ Database seeded successfully');
+    } else {
+      console.log('✅ Database already has users, skipping seed.');
+    }
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
-});
+    // Routes
+    app.use('/api/auth', authRoutes);
+    app.use('/api/finances', financeRoutes);
+    app.use('/api/budgets', budgetRoutes);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server listening at port ${PORT}`);
-});
+    // Health check
+    app.get('/api/health', (req, res) => {
+      res.json({ status: 'OK', message: 'Server is running' });
+    });
+
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`Server listening at port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+};
+
+startServer();

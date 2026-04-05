@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
   name: {
@@ -69,6 +70,10 @@ const UserSchema = new mongoose.Schema({
 
 // Auto-update updatedAt
 UserSchema.pre('save', async function () {
+  if (this.isModified('password')) {
+    const hashedPassword = await bcrypt.hash(this.password, 10);
+    this.password = hashedPassword;
+  }
   this.updatedAt = Date.now();
 });
 

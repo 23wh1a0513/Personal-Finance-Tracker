@@ -2,17 +2,21 @@ const { connectDB, disconnectDB } = require('./utils/connect');
 const User = require('./models/User');
 const Finance = require('./models/Finance');
 
-const seedDatabase = async () => {
+const seedDatabase = async (isStandalone = false) => {
   try {
-    await connectDB();
-    console.log('Connected to the database');
+    // Only connect if called as standalone script
+    if (isStandalone) {
+      await connectDB();
+      console.log('Connected to the database');
+    }
 
     // Clear existing data
     await User.deleteMany({});
     await Finance.deleteMany({});
 
     // Seed Users
-    const users = await User.create([
+    const users = [];
+    const userData = [
       {
         name: 'Alice User',
         email: 'alice@gmail.com',
@@ -29,7 +33,13 @@ const seedDatabase = async () => {
         monthlyIncome: 45000,
         currency: 'INR'
       }
-    ]);
+    ];
+
+    for (const user of userData) {
+      const newUser = new User(user);
+      await newUser.save();
+      users.push(newUser);
+    }
 
     // Seed Finance Records
     await Finance.create([
@@ -78,10 +88,16 @@ const seedDatabase = async () => {
     ]);
 
     console.log('Database seeded successfully');
-    await disconnectDB();
+    
+    // Only disconnect if called as standalone script
+    if (isStandalone) {
+      await disconnectDB();
+    }
   } catch (err) {
-    console.error('Database connection error:', err);
-    process.exit(1);
+    console.error('Database seeding error:', err);
+    if (isStandalone) {
+      process.exit(1);
+    }
   }
 };
 

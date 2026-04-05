@@ -15,21 +15,25 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
+    const trimmedPassword = password?.trim();
+
+    if (!name || !normalizedEmail || !trimmedPassword) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
 
     // Check if user exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
+    // Create user with plain text password
+    // The pre-save hook will hash it
     const user = new User({
       name,
-      email,
-      password: hashedPassword
+      email: normalizedEmail,
+      password: trimmedPassword  // Pass plain text, pre-save hook will hash it
     });
 
     await user.save();
@@ -55,15 +59,21 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
+    const trimmedPassword = password?.trim();
+
+    if (!normalizedEmail || !trimmedPassword) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
 
     // Find user
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
     // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(trimmedPassword, user.password);
     if (!isMatch) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
@@ -87,6 +97,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Auth /login error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
